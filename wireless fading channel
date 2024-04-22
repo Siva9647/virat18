@@ -1,0 +1,97 @@
+clc, clear all; close all;
+fs = 6000; f1 = 2000; f2 = 400;
+ts = 0:(1/fs):1-(1/fs);
+signal1 = exp(complex(0,2*pi*f1*ts));
+signal2 = exp(complex(0,2*pi*f2*ts));
+message = signal1+signal2;
+delayed = [zeros(1,77) message(1:length(message)-77)];
+%FREQUENCY RESPONSE
+freqres = fft(message); figure;
+magnitudeplot = abs(freqres);
+plot(1:fs,magnitudeplot);
+title({'Input Signal';'Frequency Response'});
+xlabel('Frequency(Hz)'); ylabel('Amplitude(V)');
+figure; freqres2=fft(delayed);
+plot(1:fs,abs(freqres2));
+title({'Delayed Input signal';'Frequency Response'});
+xlabel('Frequency(Hz)');
+ylabel('Amplitude(V)');
+%Slow and Flat Fading
+h = randn + (1i*randn);
+y1 = message.*h;
+freqres = fft(y1);
+magnitudeplot = abs(fft(y1));
+figure;
+plot(1:fs,magnitudeplot(1:fs));
+title('Slow and Flat Fading');
+xlabel('Frequency(Hz)'); ylabel('Amplitude(V)');
+%Slow and Frequency Selective Fading
+h1 = randn + (1i*randn);
+h2 = randn + (1i*randn);
+trans2 = (h1.*message) + (h2.*delayed);
+magnitudeplot = abs(fft(trans2));
+figure; plot(1:fs,magnitudeplot);
+title('Slow and Frequency Selective Fading');
+xlabel('Frequency(Hz)'); ylabel('Amplitude(V)');
+%Fast and Flat Fading
+fd = 10;%doppler frequency
+hs = randi([0 1],1,length(ts)) +(1i*randi([0 1],1,length(ts)));
+[b,a] = butter(12,((2*fd)/1000));
+lpf = filter(b,a,hs);
+trans3 = lpf.*message;
+magnitudeplot = abs(fft(trans3));
+figure; plot(1:fs,magnitudeplot);
+title('Fast and Flat Fading');
+xlabel('Frequency(Hz)'); ylabel('Amplitude(V)');
+% Fast and Frequency Selective Fading
+ht = randi([0 1],1,length(ts)) +1i*(randi([0 1],1,length(ts)));
+lpf1 = filter(b,a,ht); trans4 = (lpf1.*message) +(lpf1.*delayed);
+magnitudeplot = abs(fft(trans4));
+figure;
+plot(1:fs,magnitudeplot);
+title('Fast and Frequency Selective Fading');
+xlabel('Frequency(Hz)'); ylabel('Amplitude(V)');
+
+
+
+
+
+
+%Rician and Rayleigh Channel
+clc clear all close all
+n = 10000;
+i = randi([0,1],1,n);
+i1 = 2*i -1;
+a = randn(1,n); b = randn(1,n);
+rc = 1/sqrt(2)*(sqrt(a.^2+b.^2));
+for l = 0:1:20
+snr = 10^(l/10); sdev = sqrt(0.5/snr);
+N = random('norm',0,sdev,[1,n]);
+yrc = rc.*i1+N; YR = (yrc>=0);
+ErrorR = sum((xor(YR,i)));
+ber_R(l+1) = ErrorR/n;
+end
+q = 0:1:20;
+semilogy(q,ber_R(q+1),'k-','LineWidth',2);
+hold on;
+axis([0 20 10^-5 1]);
+xlabel('SNR(dB)'); ylabel('BER');
+k1 = 10; mean = sqrt(k1/(k1+1));
+sigma = sqrt(1/(2*(k1+1)));
+Nr2 = randn(1,length(i1))*sigma+mean;
+Ni2 = randn(1,length(i1))*sigma;
+No3 = sqrt(Nr2.^2+Ni2.^2);
+for k = 0:1:20
+snrl = 10^(k/10); Np = 1/snrl;
+sd = sqrt(Np/2); No = random('Normal',0,sd,1,length(i1));
+t1 = i1.*No3+No; z1 = t1./No3;
+op1 = (z1>0);
+Berr(k+1) = sum(xor(op1,i))/n;
+end
+k = 0:1:20;
+semilogy(k,Berr(k+1),'*-');
+hold on;
+axis([0 20 10^-5 1]);
+title(' BER Performance ');
+xlabel('SNR(dB)'); ylabel('BER');
+legend('BER rayleigh','BER Rician');
